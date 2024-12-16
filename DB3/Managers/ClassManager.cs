@@ -1,13 +1,19 @@
+using DB3.Core;
 using DB3.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace DB3;
+// Description:
+// This class is responsible for managing school classes.
+// The class has a method to view all classes and a method to view all students from specific class.
+// The class is accessed from the main menu.
 
-public class ClassManager
+namespace DB3.Managers;
+
+public static class ClassManager
 {
     public static void ManageClasses()
     {
-        var isRunning = true;
+        const bool isRunning = true;
         while (isRunning)
         {
             var choice = Menu.ShowMenu("| Class Menu |", Menu.GetClassMenuOptions());
@@ -23,9 +29,9 @@ public class ClassManager
     }
     
     // Method to read all classes with the option to view class info
-    public static void ViewAllClasses()
+    private static void ViewAllClasses()
     {
-        var isRunning = true;
+        const bool isRunning = true;
         while (isRunning)
         {
             Console.Clear();
@@ -66,7 +72,7 @@ public class ClassManager
     }
 
     // Method to view all students in a class
-    public static void ViewClassInfo(string choice)
+    private static void ViewClassInfo(string choice)
     {
         Console.Clear();
         using var db = new AppDbContext();

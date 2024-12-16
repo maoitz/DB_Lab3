@@ -1,15 +1,20 @@
+using DB3.Core;
 using DB3.Models;
 using Microsoft.EntityFrameworkCore;
 
 // Description:
+// This class is responsible for managing employees.
+// The class has methods to view all employees, add a new employee, and delete an employee.
+// Employees can be viewed by position.
+// The class is accessed from the main menu.
 
-namespace DB3;
+namespace DB3.Managers;
 
-public class EmployeeManager
+public static class EmployeeManager
 {
     public static void ManageEmployees()
     {
-        var isRunning = true;
+        const bool isRunning = true;
         while (isRunning)
         {
             var choice = Menu.ShowMenu("| Employee Menu |", Menu.GetEmployeeMenuOptions());
@@ -98,7 +103,7 @@ public class EmployeeManager
     }
 
     // Method to add a new employee stored in the database
-    public static void AddNewEmployee()
+    private static void AddNewEmployee()
     {
         Console.Clear();
         Console.WriteLine("| Add New Employee |");
@@ -117,14 +122,13 @@ public class EmployeeManager
             Console.WriteLine("[2] Administrator");
             Console.WriteLine("[3] Principal");
             var choice = Menu.GetMenuChoice(3);
-            if (choice == 1 || choice == 2 || choice == 3)
+            if (choice is 1 or 2 or 3)
             {
                 string position = choice switch
                 {
                     1 => "Teacher",
                     2 => "Administrator",
-                    3 => "Principal",
-                    _ => ""
+                    3 => "Principal"
                 };
                 using var db = new AppDbContext();
                 var employee = new Employee
@@ -164,7 +168,7 @@ public class EmployeeManager
         }
         Console.WriteLine("-----------------------------");
         Console.Write("Enter ID of employee to delete: ");
-        var id = Menu.GetMenuChoice(employees.Count);
+        var id = int.TryParse(Console.ReadLine(), out var employeeId) ? employeeId : 0;
         var employeeToDelete = db.Employees.FirstOrDefault(e => e.EmployeeId == id);
         if (employeeToDelete != null)
         {
@@ -176,10 +180,10 @@ public class EmployeeManager
             var maxId = db.Employees.Max(e => (int?)e.EmployeeId) ?? 0;
             
             // Reset auto-increment to the highest ID
-            db.Database.ExecuteSqlRaw($"DBCC CHECKIDENT ('Employee', RESEED, {maxId})");
+            db.Database.ExecuteSql($"DBCC CHECKIDENT ('Employee', RESEED, {maxId})");
         }
         else
-        {
+        { 
             Console.WriteLine("Employee not found!");
         }
         Console.WriteLine("\nPress any key to continue...");

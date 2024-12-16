@@ -1,15 +1,22 @@
+using DB3.Core;
 using DB3.Models;
 using Microsoft.EntityFrameworkCore;
 
 // Description:
+// This class is responsible for managing students.
+// The class has methods to view all students, add a new student, delete a student, view subject info, and view grades.
+// View all students has the option to sort by first name, last name, or class.
+// View subject info has a grade mapping allowing for average, highest, and lowest grade using A-F scale.
+// View grades shows all grades set in the last 30 days.
+// The class is accessed from the main menu.
 
-namespace DB3;
+namespace DB3.Managers;
 
-public class StudentManager
+public static class StudentManager
 {
     public static void ManageStudents()
     {
-        var isRunning = true;
+        const bool isRunning = true;
         while (isRunning)
         {
             var choice = Menu.ShowMenu("| Student Menu |", Menu.GetStudentMenuOptions());
@@ -36,111 +43,98 @@ public class StudentManager
         }
     }
 
-    // Method to view all students and the option to sort them
-    private static void ViewAllStudents(bool? isAlreadySorted = false)
+    // Method to view all students with the option to sort by first name, last name, or class
+    private static void ViewAllStudents()
     {
         var isRunning = true;
-        var isSorted = false; // Flag to allow initial read of all students
+        List<Student>? students = null;
 
         while (isRunning)
         {
-            if (!isSorted)
+            if (students == null)
             {
-                Console.Clear();
-                using var db = new AppDbContext();
-                var students = db.Students.Include(s => s.ClassNavigation).ToList();
-                Console.WriteLine("S-ID\tName \t\tClass");
-                foreach (var student in students)
-                {
-                    Console.WriteLine(
-                        $"{student.StudentId}\t{student.FirstName} {student.LastName}\t{student.ClassNavigation.ClassName}");
-                }
-
-                Console.WriteLine("-----------------------------");
-            }
-            else
-            {
-                
+                students = GetStudents();
             }
 
-            // Submenu to sort students (Can be put into Menu.cs)
+            PrintStudents(students);
+
             Console.WriteLine("Sort by:");
             Console.WriteLine("[1] First Name");
             Console.WriteLine("[2] Last Name");
             Console.WriteLine("[3] Class");
             Console.WriteLine("[4] Back");
             var choice = Menu.GetMenuChoice(4);
-
             if (choice == 4)
             {
-                return;
+                isRunning = false;
             }
-            
-            if (choice > 0 && choice < 4)
+            else if (choice is > 0 and < 4)
             {
                 while (true)
                 {
                     Console.Clear();
-                    isSorted = true;
                     Console.WriteLine("[1] Ascending");
                     Console.WriteLine("[2] Descending");
                     var sortChoice = Menu.GetMenuChoice(2);
-                    if (sortChoice == 1 || sortChoice == 2)
+                    if (sortChoice is 1 or 2)
                     {
-                        SortStudent(choice, sortChoice);
-                        break; // Break out of the loop if a valid sort choice is made
+                        students = SortStudents(choice, sortChoice);
+                        break;
                     }
+
                     Menu.InvalidOption();
                 }
             }
             else
             {
-                // Fix bug: Does not handle console correctly when "invalid option" is chosen after sorting
-                // Possible fix: Store sorted list in variable, print new variable instead of re-reading from database
                 Menu.InvalidOption();
-                
             }
         }
     }
 
-    // Method to sort students based on user choice
-    private static void SortStudent(int choice, int sortChoice)
+    // Method to get all students from the database to be able to store them in a variable
+    private static List<Student> GetStudents()
+    {
+        using var db = new AppDbContext();
+        return db.Students.Include(s => s.ClassNavigation).ToList();
+    }
+
+    // Method to print all students to the console
+    private static void PrintStudents(List<Student> students)
     {
         Console.Clear();
-        using var db = new AppDbContext();
-        List<Student> students = null;
-        
-        switch (choice)
-        {
-            // Sort the list by using two different queries for each case depending on the sort choice
-            
-            case 1:
-                students = sortChoice == 1
-                    ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.FirstName).ToList()
-                    : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.FirstName).ToList();
-                break;
-            case 2:
-                students = sortChoice == 1
-                    ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.LastName).ToList()
-                    : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.LastName).ToList();
-                break;
-            case 3:
-                students = sortChoice == 1
-                    ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.ClassNavigation.ClassName).ToList()
-                    : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.ClassNavigation.ClassName).ToList();
-                break;
-        }
-        
         Console.WriteLine("S-ID\tName \t\tClass");
         foreach (var student in students)
         {
-            Console.WriteLine($"{student.StudentId}\t{student.FirstName} {student.LastName}\t{student.ClassNavigation.ClassName}");
+            Console.WriteLine(
+                $"{student.StudentId}\t{student.FirstName} {student.LastName}\t{student.ClassNavigation.ClassName}");
         }
+
         Console.WriteLine("-----------------------------");
     }
-    
+
+    // Method to sort students by first name, last name, or class depending on the user input
+    private static List<Student> SortStudents(int choice, int sortChoice)
+    {
+        using var db = new AppDbContext();
+        return choice switch
+        {
+            1 => sortChoice == 1
+                ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.FirstName).ToList()
+                : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.FirstName).ToList(),
+            2 => sortChoice == 1
+                ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.LastName).ToList()
+                : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.LastName).ToList(),
+            3 => sortChoice == 1
+                ? db.Students.Include(s => s.ClassNavigation).OrderBy(s => s.ClassNavigation.ClassName).ToList()
+                : db.Students.Include(s => s.ClassNavigation).OrderByDescending(s => s.ClassNavigation.ClassName)
+                    .ToList(),
+            _ => new List<Student>()
+        };
+    }
+
     // Method to add a new student
-    public static void AddNewStudent()
+    private static void AddNewStudent()
     {
         Console.Clear();
         Console.WriteLine("| Add New Student |");
@@ -148,7 +142,7 @@ public class StudentManager
         var firstName = Console.ReadLine();
         Console.Write("Last Name: ");
         var lastName = Console.ReadLine();
-        Console.Write("Social Security Number(SSN): ");
+        Console.Write("Social Security Number(SSN): "); // Add a way to validate the SSN(format) against the database
         var ssn = Console.ReadLine();
 
         // Submenu to select the position of the employee
@@ -161,9 +155,9 @@ public class StudentManager
             Console.WriteLine("[2] 7B");
             Console.WriteLine("[3] 7C");
             var choice = Menu.GetMenuChoice(3);
-            if (choice == 1 || choice == 2 || choice == 3)
+            if (choice is 1 or 2 or 3)
             {
-                string _class = choice switch
+                string className = choice switch
                 {
                     1 => "7A",
                     2 => "7B",
@@ -171,19 +165,28 @@ public class StudentManager
                     _ => ""
                 };
                 using var db = new AppDbContext();
-                var student = new Student()
+                var classEntity = db.Classes.First(c => c.ClassName == className);
+                if (classEntity != null)
                 {
-                    FirstName = firstName,
-                    LastName = lastName,
-                    Ssn = ssn,
-                    Class = db.Classes.First(c => c.ClassName == _class).ClassId
-                };
-                db.Students.Add(student);
-                db.SaveChanges();
-                Console.WriteLine($"Student [{firstName}] added successfully!");
-                Console.WriteLine("\nPress any key to continue...");
-                Console.ReadKey();
-                isRunning = false;
+                    var student = new Student
+                    {
+                        FirstName = firstName,
+                        LastName = lastName,
+                        Ssn = ssn,
+                        Class = classEntity.ClassId
+                    };
+                    db.Students.Add(student);
+                    db.SaveChanges();
+                    Console.WriteLine($"Student [{firstName}] added successfully!");
+                    Console.WriteLine("\nPress any key to continue...");
+                    Console.ReadKey();
+                    isRunning = false;
+                }
+                else
+                {
+                    Console.WriteLine("Class not found!");
+                    Console.ReadKey();
+                }
             }
             else
             {
@@ -192,7 +195,7 @@ public class StudentManager
         }
     }
     
-    // Method to delete a student from the database and reset the auto-increment
+    // Method to delete a student from the database and reset the auto-increment (WIP)
     private static void DeleteStudent()
     {
         Console.Clear();
@@ -209,8 +212,11 @@ public class StudentManager
         }
         Console.WriteLine("-----------------------------");
         Console.Write("Enter ID of student to delete: ");
-        var id = Menu.GetMenuChoice(students.Count);
-        var studentToDelete = db.Students.First(s => s.StudentId == id);
+        // Add error handling here! --
+        var id = int.TryParse(Console.ReadLine(), out var studentId) ? studentId : 0;
+        // --
+        var studentToDelete = db.Students
+            .First(s => s.StudentId == id);
         if (studentToDelete != null)
         {
             db.Students.Remove(studentToDelete);
@@ -221,7 +227,7 @@ public class StudentManager
             var maxId = db.Students.Max(s => (int?)s.StudentId) ?? 0;
             
             // Reset auto-increment to the highest ID
-            db.Database.ExecuteSqlRaw($"DBCC CHECKIDENT ('Student', RESEED, {maxId})");
+            db.Database.ExecuteSql($"DBCC CHECKIDENT ('Student', RESEED, {maxId})");
         }
         else
         {
@@ -234,7 +240,7 @@ public class StudentManager
     // Method to show all grades set in the last 30 days
     private static void ViewGrades()
     {
-        var isRunning = true;
+        const bool isRunning = true;
         while (isRunning)
         {
             Console.Clear();
@@ -259,22 +265,50 @@ public class StudentManager
         }
     }
     
-    // Method to view subject info
+    // Method to view subject info with grade mapping allowing for average, highest, and lowest grade using A-F scale
     private static void ViewAllSubjects()
     {
+        var gradeMapping = new Dictionary<string, double>
+        {
+            { "A", 5.0 },
+            { "B", 4.0 },
+            { "C", 3.0 },
+            { "D", 2.0 },
+            { "E", 1.0 },
+            { "F", 0.0 }
+        };
+
+        var reverseGradeMapping = new Dictionary<double, string>
+        {
+            { 5.0, "A" },
+            { 4.0, "B" },
+            { 3.0, "C" },
+            { 2.0, "D" },
+            { 1.0, "E" },
+            { 0.0, "F" }
+        };
+
         Console.Clear();
         using var db = new AppDbContext();
-        var subjects = db.Subjects.Include(s => s.Grades).ToList();
-        
-        Console.WriteLine("| Subject Information |\n");
-        Console.WriteLine("Subject\tAverage\tHighest\tLowest");
-        foreach (var subject in subjects)
-        {
-            Console.WriteLine(
-                $"{subject.SubjectName}\t WIP\t{subject.Grades.Min(g => g.Grade1)}\t{subject.Grades.Max(g => g.Grade1)}");
-        }
+        var subjects = db.Subjects
+            .Include(s => s.Grades)
+            .ToList();
 
-        Console.WriteLine("-----------------------------");
+        var subjectGrades = subjects.Select(s => new
+        {
+            SubjectName = s.SubjectName,
+            AverageGrade = s.Grades.Any() ? s.Grades.Average(g => gradeMapping[g.Grade1]) : 0,
+            HighestGrade = s.Grades.Any() ? s.Grades.Min(g => g.Grade1) : "N/A",
+            LowestGrade = s.Grades.Any() ? s.Grades.Max(g => g.Grade1) : "N/A"
+        }).ToList();
+
+        Console.WriteLine("Subject\t Average Grade\tHighest\tLowest");
+        foreach (var subject in subjectGrades)
+        {
+            var averageGrade = reverseGradeMapping[Math.Round(subject.AverageGrade)];
+            Console.WriteLine($"{subject.SubjectName}\t {averageGrade}\t\t{subject.HighestGrade}\t{subject.LowestGrade}");
+        }
+        Console.WriteLine("---------------------------------------");
         Console.WriteLine("\nPress any key to continue...");
         Console.ReadKey();
     }
